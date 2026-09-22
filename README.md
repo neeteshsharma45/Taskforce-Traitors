@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🚀 Taskforce Traitors — Campus Social Deduction Platform
 
 **Taskforce Traitors** is a real-time web application built to run physical, campus-wide social deduction games (*Among Us / The Traitors* style) for **60 players across 20 teams of 3**.
@@ -90,3 +91,6 @@ Taskforce Traitors/
 - Imposter roles are strictly filtered at the database query layer (`middleware/roles.js`).
 - Role information is never sent to public endpoints or crew volunteer sessions.
 - Socket.io rooms strictly isolate `admin`, `imposter_secret`, and public channels.
+=======
+# Taskforce-Traitors
+>>>>>>> e1fdbd4fc22eb3b3816f2ef29d739e50b497a2df
