@@ -1,0 +1,16 @@
+{
+  "name": "Taskforce Traitors — Volunteer App",
+  "short_name": "Taskforce",
+  "description": "Volunteer station control app for Taskforce Traitors",
+  "start_url": "/volunteer/",
+  "display": "standalone",
+  "background_color": "#090d16",
+  "theme_color": "#00f2fe",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

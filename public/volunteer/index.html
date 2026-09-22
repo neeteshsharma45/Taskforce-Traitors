@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Taskforce Traitors — Station Control</title>
+<link rel="manifest" href="/volunteer/manifest.json"/>
+<meta name="theme-color" content="#090d16"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="/socket.io/socket.io.js"></script>
+
+<style>
+:root {
+  --bg-dark: #070a12;
+  --bg-card: rgba(15, 23, 42, 0.85);
+  --bg-input: rgba(30, 41, 59, 0.7);
+  --cyan-primary: #00f2fe;
+  --cyan-glow: rgba(0, 242, 254, 0.35);
+  --red-imposter: #ff0055;
+  --red-glow: rgba(255, 0, 85, 0.4);
+  --green-crew: #00ff88;
+  --green-glow: rgba(0, 255, 136, 0.35);
+  --gold-accent: #ffb703;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-line: rgba(255, 255, 255, 0.12);
+  --font-heading: 'Orbitron', sans-serif;
+  --font-sub: 'Rajdhani', sans-serif;
+  --font-body: 'Space Grotesk', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  padding-bottom: 70px;
+  overflow-x: hidden;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(0, 242, 254, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(255, 0, 85, 0.05) 0%, transparent 40%);
+}
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(7, 10, 18, 0.9);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-line);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo-tag {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, var(--cyan-primary), #4facfe);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.team-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.badge-crew { background: rgba(0, 255, 136, 0.15); color: var(--green-crew); border: 1px solid var(--green-crew); }
+.badge-imposter { background: rgba(255, 0, 85, 0.15); color: var(--red-imposter); border: 1px solid var(--red-imposter); }
+.badge-eliminated { background: rgba(148, 163, 184, 0.2); color: var(--text-muted); border: 1px solid var(--text-muted); }
+
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-line);
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.card-title {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-banner {
+  padding: 14px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  text-align: center;
+  font-family: var(--font-sub);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.role-banner.crew { background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,242,254,0.1)); border: 1px solid var(--green-crew); color: var(--green-crew); }
+.role-banner.imposter { background: linear-gradient(135deg, rgba(255,0,85,0.2), rgba(120,0,40,0.3)); border: 1px solid var(--red-imposter); color: var(--red-imposter); animation: pulseRed 2s infinite; }
+
+@keyframes pulseRed {
+  0%, 100% { box-shadow: 0 0 10px rgba(255,0,85,0.2); }
+  50% { box-shadow: 0 0 25px rgba(255,0,85,0.5); }
+}
+
+.btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  font-family: var(--font-sub);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary { background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; font-weight: 900; }
+.btn-danger { background: linear-gradient(135deg, #ff0055, #ff5252); color: #fff; }
+.btn-warning { background: linear-gradient(135deg, #ffb703, #fb8500); color: #000; font-weight: 800; }
+.btn-secondary { background: rgba(255,255,255,0.1); color: var(--text-main); border: 1px solid var(--border-line); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.task-item {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid var(--border-line);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.task-header { display: flex; justify-content: space-between; align-items: flex-start; }
+.task-name { font-weight: 700; font-size: 1rem; color: #fff; }
+.task-points { font-family: var(--font-sub); font-size: 0.9rem; color: var(--gold-accent); font-weight: 700; }
+.task-desc { font-size: 0.85rem; color: var(--text-muted); }
+
+.input-field {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-line);
+  border-radius: 10px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.95rem;
+  margin-top: 6px;
+  margin-bottom: 10px;
+}
+.input-field:focus { outline: none; border-color: var(--cyan-primary); }
+
+.timer-display {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  color: var(--cyan-primary);
+  text-align: center;
+  margin: 10px 0;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+.modal-overlay.active { display: flex; }
+.modal-content {
+  background: #0f172a;
+  border: 2px solid var(--cyan-primary);
+  border-radius: 20px;
+  padding: 24px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 0 40px var(--cyan-glow);
+}
+.modal-content.imposter-modal { border-color: var(--red-imposter); box-shadow: 0 0 40px var(--red-glow); }
+
+.victim-banner {
+  background: rgba(255, 0, 85, 0.2);
+  border: 2px solid var(--red-imposter);
+  color: #fff;
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+/* Bottom Nav */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border-line);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 90;
+}
+.nav-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-sub);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.nav-btn.active { color: var(--cyan-primary); }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-tag">TASKFORCE CONTROL</div>
+  <div id="teamBadge" class="team-badge badge-crew">Loading...</div>
+</header>
+
+<div class="container">
+
+  <!-- Role Banner -->
+  <div id="roleBanner" class="role-banner crew">ASSIGNED ROLE: CREW</div>
+
+  <!-- Victim Kill Alert Banner (if pending victim kill) -->
+  <div id="victimPendingCard" class="card" style="display:none; border: 2px solid var(--red-imposter); background: rgba(255,0,85,0.15);">
+    <div class="card-title" style="color:var(--red-imposter);">⚠️ IMPOSTER ATTACK REPORTED!</div>
+    <p style="font-size:0.9rem; margin-bottom:12px;">An imposter team has filed a kill attempt against your team!</p>
+    <button id="btnAcknowledgeKill" class="btn btn-danger">CONFIRM OUR ELIMINATION</button>
+  </div>
+
+  <!-- TAB 1: TASKS -->
+  <div id="tabTasks" class="tab-content active">
+    <div class="card">
+      <div class="card-title">📍 Current Station & Tasks</div>
+      <div id="stationSelectWrapper">
+        <label style="font-size:0.85rem; color:var(--text-muted);">Select Station Location:</label>
+        <select id="stationSelect" class="input-field">
+          <option value="">-- Choose Physical Station --</option>
+        </select>
+      </div>
+      <div id="taskList">
+        <p style="color:var(--text-muted); font-size:0.9rem;">Select a station above to view available tasks.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: ACTIONS (Imposter / Meeting) -->
+  <div id="tabActions" class="tab-content">
+    
+    <!-- Imposter Kill Panel (Visible only to Imposters) -->
+    <div id="imposterPanel" class="card" style="display:none; border-color: var(--red-imposter);">
+      <div class="card-title" style="color:var(--red-imposter);">🗡️ IMPOSTER ACTION — EXECUTE KILL</div>
+      <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Report a secret kill on a crew team. Requires victim team acknowledgment or admin override.</p>
+      
+      <label style="font-size:0.85rem; color:var(--text-muted);">Target Victim Team:</label>
+      <select id="victimTeamSelect" class="input-field">
+        <option value="">-- Select Target Team --</option>
+      </select>
+
+      <label style="font-size:0.85rem; color:var(--text-muted);">Kill Method / Secret Handoff Signal:</label>
+      <input type="text" id="killMethodInput" class="input-field" placeholder="e.g. Secret card handoff, Tap on shoulder"/>
+
+      <button id="btnReportKill" class="btn btn-danger">EXECUTE KILL SIGNAL</button>
+    </div>
+
+    <!-- Emergency Meeting Panel -->
+    <div class="card">
+      <div class="card-title" style="color:var(--gold-accent);">🚨 EMERGENCY MEETING</div>
+      <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Call all teams to an emergency assembly to discuss and vote out suspected imposters.</p>
+      <div style="font-size:0.85rem; margin-bottom:10px;">Meetings Left: <span id="meetingsLeftCount" style="font-weight:700; color:#fff;">1</span></div>
+      <button id="btnCallMeeting" class="btn btn-warning">HIT EMERGENCY BUTTON</button>
+    </div>
+
+  </div>
+
+  <!-- TAB 3: TEAM STATUS -->
+  <div id="tabStatus" class="tab-content">
+    <div class="card">
+      <div class="card-title">📊 Team Overview</div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <span style="color:var(--text-muted);">Team Name:</span>
+        <span id="overviewTeamName" style="font-weight:700;">-</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <span style="color:var(--text-muted);">Tasks Completed:</span>
+        <span id="overviewTasksDone" style="font-weight:700; color:var(--green-crew);">0</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <span style="color:var(--text-muted);">Total Score:</span>
+        <span id="overviewScore" style="font-weight:700; color:var(--cyan-primary);">0 pts</span>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--text-muted);">Status:</span>
+        <span id="overviewStatus" style="font-weight:700;">ALIVE</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MEETING MODAL -->
+<div id="meetingModal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="card-title" style="color:var(--gold-accent); text-align:center;">🚨 EMERGENCY MEETING IN PROGRESS</div>
+    <div class="timer-display" id="meetingTimer">01:30</div>
+    <div id="meetingPhaseText" style="text-align:center; color:var(--text-muted); margin-bottom:16px;">DISCUSSION PHASE</div>
+
+    <div id="votingContainer" style="display:none;">
+      <p style="font-size:0.9rem; margin-bottom:10px;">Select team to eject or vote to skip:</p>
+      <div id="votingOptionsList" style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; margin-bottom:14px;">
+        <!-- Dynamic voting options -->
+      </div>
+      <button id="btnSubmitVote" class="btn btn-primary">SUBMIT CONFIDENTIAL VOTE</button>
+    </div>
+
+    <div id="voteSubmittedMsg" style="display:none; text-align:center; padding:16px; color:var(--green-crew); font-weight:700;">
+      ✓ Vote recorded! Waiting for other teams...
+    </div>
+  </div>
+</div>
+
+<!-- TASK RUNNER MODAL -->
+<div id="taskModal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="card-title" id="taskModalTitle">Task Name</div>
+    <p id="taskModalDesc" style="font-size:0.9rem; color:var(--text-muted); margin-bottom:14px;"></p>
+    
+    <div id="taskTimerBox" class="timer-display" style="display:none;">05:00</div>
+
+    <div id="taskInteractionArea">
+      <!-- Dynamic input controls (quiz inputs, puzzle, photo upload) -->
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:16px;">
+      <button id="btnCancelTask" class="btn btn-secondary">CANCEL</button>
+      <button id="btnSubmitTask" class="btn btn-primary">SUBMIT FOR REVIEW</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <button class="nav-btn active" onclick="switchTab('tabTasks', this)">
+    <span>📍</span> Tasks
+  </button>
+  <button class="nav-btn" onclick="switchTab('tabActions', this)">
+    <span>⚡</span> Actions
+  </button>
+  <button class="nav-btn" onclick="switchTab('tabStatus', this)">
+    <span>📊</span> Overview
+  </button>
+</div>
+
+<script>
+const socket = io();
+
+let currentTeam = null;
+let activeStation = null;
+let currentActiveTask = null;
+let taskTimerInterval = null;
+let meetingTimerInterval = null;
+
+// Initialize app
+async function init() {
+  await loadTeamInfo();
+  await loadStations();
+  setupSocketListeners();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/volunteer/sw.js').catch(()=>{});
+  }
+}
+
+async function loadTeamInfo() {
+  try {
+    const res = await fetch('/api/volunteer/me');
+    if (!res.ok) {
+      window.location.href = '/login/';
+      return;
+    }
+    const data = await res.json();
+    currentTeam = data.team;
+    renderTeamHeader();
+  } catch (err) {
+    console.error('Failed to load team info', err);
+  }
+}
+
+function renderTeamHeader() {
+  if (!currentTeam) return;
+
+  const badge = document.getElementById('teamBadge');
+  const roleBanner = document.getElementById('roleBanner');
+  const imposterPanel = document.getElementById('imposterPanel');
+
+  badge.innerText = `${currentTeam.name} (${currentTeam.id})`;
+  document.getElementById('overviewTeamName').innerText = `${currentTeam.name} (#${currentTeam.number})`;
+  document.getElementById('overviewTasksDone').innerText = currentTeam.tasks_completed || 0;
+  document.getElementById('overviewScore').innerText = `${currentTeam.score || 0} pts`;
+  document.getElementById('overviewStatus').innerText = currentTeam.status.toUpperCase();
+
+  if (currentTeam.status === 'eliminated') {
+    badge.className = 'team-badge badge-eliminated';
+    roleBanner.className = 'role-banner';
+    roleBanner.style.background = 'rgba(148,163,184,0.2)';
+    roleBanner.style.color = '#94a3b8';
+    roleBanner.innerText = 'TEAM ELIMINATED';
+  } else if (currentTeam.role === 'imposter') {
+    badge.className = 'team-badge badge-imposter';
+    roleBanner.className = 'role-banner imposter';
+    roleBanner.innerText = 'SECRET ROLE: IMPOSTER';
+    imposterPanel.style.display = 'block';
+    loadVictimOptions();
+  } else {
+    badge.className = 'team-badge badge-crew';
+    roleBanner.className = 'role-banner crew';
+    roleBanner.innerText = 'SECRET ROLE: CREW MEMBER';
+    imposterPanel.style.display = 'none';
+  }
+}
+
+async function loadStations() {
+  try {
+    const res = await fetch('/api/volunteer/stations');
+    const stations = await res.json();
+    const select = document.getElementById('stationSelect');
+    select.innerHTML = '<option value="">-- Choose Physical Station --</option>';
+    if (Array.isArray(stations)) {
+      stations.forEach(s => {
+        const note = s.location_note ? ` (${s.location_note})` : '';
+        select.innerHTML += `<option value="${s.id}">${s.name}${note}</option>`;
+      });
+    }
+  } catch (err) {
+    console.error('Failed to load stations', err);
+  }
+}
+
+document.getElementById('stationSelect').addEventListener('change', async (e) => {
+  activeStation = e.target.value;
+  if (activeStation) {
+    await loadTasksForStation(activeStation);
+  } else {
+    document.getElementById('taskList').innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">Select a station above to view available tasks.</p>';
+  }
+});
+
+async function loadTasksForStation(stationId) {
+  try {
+    const res = await fetch(`/api/volunteer/tasks?station_id=${stationId}`);
+    const tasks = await res.json();
+    const container = document.getElementById('taskList');
+    if (!tasks || tasks.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">No active tasks at this station.</p>';
+      return;
+    }
+    container.innerHTML = tasks.map(t => `
+      <div class="task-item">
+        <div class="task-header">
+          <span class="task-name">${t.title}</span>
+          <span class="task-points">+${t.points} pts</span>
+        </div>
+        <div class="task-desc">${t.description}</div>
+        <button class="btn btn-primary" style="margin-top:8px;" onclick="openTaskRunner(${t.id}, '${t.type}')">START TASK</button>
+      </div>
+    `).join('');
+  } catch (err) {
+    console.error('Error loading tasks', err);
+  }
+}
+
+async function openTaskRunner(taskId, taskType) {
+  try {
+    const startRes = await fetch('/api/volunteer/tasks/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_id: taskId })
+    });
+    const taskData = await startRes.json();
+    if (!startRes.ok) {
+      alert(taskData.error || 'Failed to start task');
+      return;
+    }
+
+    currentActiveTask = taskData;
+    document.getElementById('taskModalTitle').innerText = taskData.title;
+    document.getElementById('taskModalDesc').innerText = taskData.description;
+
+    const area = document.getElementById('taskInteractionArea');
+    area.innerHTML = '';
+
+    if (taskType === 'quiz' || taskType === 'trivia') {
+      area.innerHTML = `
+        <label style="font-size:0.85rem; color:var(--text-muted);">Your Answer:</label>
+        <input type="text" id="taskAnswerInput" class="input-field" placeholder="Enter exact answer..."/>
+      `;
+    } else if (taskType === 'photo' || taskType === 'proof') {
+      area.innerHTML = `
+        <label style="font-size:0.85rem; color:var(--text-muted);">Upload Photo Proof:</label>
+        <input type="file" id="taskPhotoInput" accept="image/*" class="input-field"/>
+      `;
+    } else {
+      area.innerHTML = `
+        <p style="font-size:0.9rem; color:var(--text-muted);">Complete the physical challenge with station volunteer monitoring.</p>
+      `;
+    }
+
+    document.getElementById('taskModal').classList.add('active');
+  } catch (err) {
+    alert('Failed to connect to task system');
+  }
+}
+
+document.getElementById('btnCancelTask').addEventListener('click', () => {
+  document.getElementById('taskModal').classList.remove('active');
+});
+
+document.getElementById('btnSubmitTask').addEventListener('click', async () => {
+  if (!currentActiveTask) return;
+
+  const formData = new FormData();
+  formData.append('task_id', currentActiveTask.id || currentActiveTask.task_id);
+
+  const answerInput = document.getElementById('taskAnswerInput');
+  if (answerInput) formData.append('answer', answerInput.value);
+
+  const photoInput = document.getElementById('taskPhotoInput');
+  if (photoInput && photoInput.files[0]) {
+    formData.append('proof_image', photoInput.files[0]);
+  }
+
+  try {
+    const res = await fetch('/api/volunteer/tasks/submit', {
+      method: 'POST',
+      body: formData
+    });
+    const result = await res.json();
+    if (res.ok) {
+      alert('Task submitted successfully!');
+      document.getElementById('taskModal').classList.remove('active');
+      if (activeStation) loadTasksForStation(activeStation);
+      loadTeamInfo();
+    } else {
+      alert(result.error || 'Submission failed');
+    }
+  } catch (err) {
+    alert('Submission request failed');
+  }
+});
+
+async function loadVictimOptions() {
+  try {
+    const res = await fetch('/api/public/state');
+    const data = await res.json();
+    const select = document.getElementById('victimTeamSelect');
+    select.innerHTML = '<option value="">-- Select Target Team --</option>';
+    data.teams.filter(t => t.id !== currentTeam.id && t.status === 'alive').forEach(t => {
+      select.innerHTML += `<option value="${t.id}">${t.name} (#${t.number})</option>`;
+    });
+  } catch (err) {}
+}
+
+document.getElementById('btnReportKill').addEventListener('click', async () => {
+  const victimId = document.getElementById('victimTeamSelect').value;
+  const killMethod = document.getElementById('killMethodInput').value;
+
+  if (!victimId) return alert('Select target victim team');
+
+  try {
+    const res = await fetch('/api/volunteer/imposter/kill', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ victim_team_id: victimId, kill_method: killMethod })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert('Kill reported! Waiting for victim acknowledgment or admin review.');
+    } else {
+      alert(data.error || 'Kill report failed');
+    }
+  } catch (err) {
+    alert('Network error');
+  }
+});
+
+document.getElementById('btnCallMeeting').addEventListener('click', async () => {
+  if (!confirm('Are you sure you want to trigger an Emergency Meeting?')) return;
+  try {
+    const res = await fetch('/api/volunteer/emergency-meeting', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) alert(data.error || 'Meeting trigger failed');
+  } catch (err) {
+    alert('Network error');
+  }
+});
+
+function switchTab(tabId, el) {
+  document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(nb => nb.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  el.classList.add('active');
+}
+
+function setupSocketListeners() {
+  socket.on('game:state', () => { loadTeamInfo(); });
+  socket.on('state:update', () => { loadTeamInfo(); });
+
+  socket.on('task:verified', (data) => {
+    loadTeamInfo();
+    if (data.status === 'approved') {
+      alert(`🎉 Task verified! +${data.points || 0} points`);
+    } else if (data.status === 'rejected') {
+      alert(`⚠️ Task rejected: ${data.note || 'No reason provided'}`);
+    }
+  });
+
+  socket.on('task:started', () => { loadTeamInfo(); });
+  socket.on('task:expired', () => {
+    alert('⏱️ Task time limit expired!');
+    loadTeamInfo();
+  });
+
+  socket.on('game:roles_assigned', () => { loadTeamInfo(); });
+  socket.on('game:phase', () => { loadTeamInfo(); });
+
+  socket.on('kill:approved', (data) => {
+    if (data.eliminated) {
+      alert('☠️ YOUR TEAM HAS BEEN ELIMINATED!');
+    }
+    loadTeamInfo();
+  });
+
+  socket.on('meeting:called', (data) => {
+    document.getElementById('meetingModal').classList.add('active');
+    document.getElementById('meetingPhaseText').innerText = `DISCUSSION PHASE${data?.calledBy ? ' (Called by ' + data.calledBy + ')' : ''}`;
+    document.getElementById('votingContainer').style.display = 'none';
+  });
+  socket.on('meeting:start', () => {
+    document.getElementById('meetingModal').classList.add('active');
+    document.getElementById('meetingPhaseText').innerText = 'DISCUSSION PHASE';
+    document.getElementById('votingContainer').style.display = 'none';
+  });
+
+  socket.on('meeting:voting_open', async () => {
+    document.getElementById('meetingPhaseText').innerText = 'VOTING PHASE OPEN';
+    document.getElementById('votingContainer').style.display = 'block';
+    await loadVotingCandidates();
+  });
+  socket.on('meeting:vote_opened', async () => {
+    document.getElementById('meetingPhaseText').innerText = 'VOTING PHASE OPEN';
+    document.getElementById('votingContainer').style.display = 'block';
+    await loadVotingCandidates();
+  });
+
+  socket.on('meeting:result', (data) => {
+    document.getElementById('meetingModal').classList.remove('active');
+    const msg = data.ejectedName 
+      ? `📢 Meeting Ended: ${data.ejectedName} was ejected!` 
+      : '📢 Meeting Ended: No one was ejected.';
+    alert(msg);
+    loadTeamInfo();
+  });
+  socket.on('meeting:closed', () => {
+    document.getElementById('meetingModal').classList.remove('active');
+    loadTeamInfo();
+  });
+  socket.on('meeting:ended', (data) => {
+    document.getElementById('meetingModal').classList.remove('active');
+    alert(data?.message || 'Meeting Ended');
+    loadTeamInfo();
+  });
+
+  socket.on('game:over', (data) => {
+    alert(`🏆 GAME OVER! ${data.winner === 'crew' ? 'Crew Wins!' : 'Imposters Win!'}`);
+    loadTeamInfo();
+  });
+}
+
+async function loadVotingCandidates() {
+  try {
+    const res = await fetch('/api/public/state');
+    const data = await res.json();
+    const list = document.getElementById('votingOptionsList');
+    list.innerHTML = data.teams.filter(t => t.status === 'alive').map(t => `
+      <label style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;">
+        <input type="radio" name="suspectTeam" value="${t.id}"/>
+        <span>${t.name} (#${t.number})</span>
+      </label>
+    `).join('') + `
+      <label style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;">
+        <input type="radio" name="suspectTeam" value="skip"/>
+        <span>SKIP VOTE</span>
+      </label>
+    `;
+  } catch (err) {}
+}
+
+document.getElementById('btnSubmitVote').addEventListener('click', async () => {
+  const selected = document.querySelector('input[name="suspectTeam"]:checked');
+  if (!selected) return alert('Select a team or skip');
+
+  try {
+    const res = await fetch('/api/volunteer/vote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voted_team_id: selected.value === 'skip' ? null : selected.value })
+    });
+    if (res.ok) {
+      document.getElementById('votingContainer').style.display = 'none';
+      document.getElementById('voteSubmittedMsg').style.display = 'block';
+    } else {
+      const err = await res.json();
+      alert(err.error || 'Vote failed');
+    }
+  } catch (err) {
+    alert('Network error');
+  }
+});
+
+init();
+</script>
+</body>
+</html>

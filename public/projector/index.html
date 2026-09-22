@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Taskforce Traitors — Live Projector Feed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="/socket.io/socket.io.js"></script>
+
+<style>
+:root {
+  --bg-space: #050811;
+  --panel-bg: rgba(13, 20, 36, 0.85);
+  --cyan-primary: #00f2fe;
+  --cyan-glow: rgba(0, 242, 254, 0.4);
+  --red-imposter: #ff0055;
+  --red-glow: rgba(255, 0, 85, 0.5);
+  --green-crew: #00ff88;
+  --green-glow: rgba(0, 255, 136, 0.4);
+  --gold-accent: #ffb703;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-line: rgba(255, 255, 255, 0.15);
+  --font-heading: 'Orbitron', sans-serif;
+  --font-sub: 'Rajdhani', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background-color: var(--bg-space);
+  color: var(--text-main);
+  font-family: 'Space Grotesk', sans-serif;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-image: 
+    radial-gradient(circle at 20% 30%, rgba(0, 242, 254, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(255, 0, 85, 0.08) 0%, transparent 50%);
+}
+
+header {
+  background: rgba(5, 8, 17, 0.95);
+  border-bottom: 2px solid var(--cyan-primary);
+  padding: 16px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 30px var(--cyan-glow);
+}
+
+.brand-title {
+  font-family: var(--font-heading);
+  font-size: 2.2rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  background: linear-gradient(135deg, #00f2fe, #4facfe, #00ff88);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.game-phase-badge {
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  padding: 6px 20px;
+  border-radius: 30px;
+  background: rgba(0, 242, 254, 0.15);
+  border: 1px solid var(--cyan-primary);
+  color: var(--cyan-primary);
+  letter-spacing: 2px;
+}
+
+.main-layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  padding: 24px 32px;
+  height: calc(100vh - 160px);
+}
+
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-line);
+  border-radius: 20px;
+  padding: 24px;
+  backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.panel-title {
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+  color: var(--cyan-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Global Progress Bar */
+.progress-container {
+  margin-bottom: 24px;
+}
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-sub);
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.progress-bar-bg {
+  width: 100%;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-line);
+  border-radius: 14px;
+  overflow: hidden;
+  padding: 3px;
+}
+.progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #00f2fe, #00ff88);
+  border-radius: 10px;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 20px var(--green-glow);
+}
+
+/* Leaderboard Grid */
+.leaderboard-grid {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 8px;
+}
+.team-row {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid var(--border-line);
+  border-radius: 12px;
+  padding: 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+.team-row.eliminated {
+  opacity: 0.4;
+  filter: grayscale(1);
+  background: rgba(15, 23, 42, 0.4);
+}
+.team-rank {
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--gold-accent);
+  width: 40px;
+}
+.team-name {
+  font-family: var(--font-sub);
+  font-size: 1.3rem;
+  font-weight: 700;
+  flex: 1;
+}
+.team-stat {
+  font-family: var(--font-sub);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-left: 20px;
+}
+
+/* Activity Ticker */
+.activity-feed {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.activity-item {
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 4px solid var(--cyan-primary);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 0.95rem;
+  animation: fadeIn 0.4s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Fullscreen Overlay (Meetings / Victory) */
+.full-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(5, 8, 17, 0.96);
+  backdrop-filter: blur(20px);
+  z-index: 1000;
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  text-align: center;
+}
+.full-overlay.active { display: flex; }
+
+.alarm-title {
+  font-family: var(--font-heading);
+  font-size: 3.5rem;
+  font-weight: 900;
+  color: var(--red-imposter);
+  letter-spacing: 4px;
+  text-shadow: 0 0 30px var(--red-glow);
+  animation: pulseAlarm 1.5s infinite;
+  margin-bottom: 20px;
+}
+@keyframes pulseAlarm { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+.timer-large {
+  font-family: var(--font-heading);
+  font-size: 5rem;
+  color: var(--cyan-primary);
+  text-shadow: 0 0 40px var(--cyan-glow);
+  margin: 20px 0;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand-title">TASKFORCE TRAITORS</div>
+  <div id="gamePhaseDisplay" class="game-phase-badge">LOBBY / WAITING</div>
+</header>
+
+<div class="main-layout">
+  
+  <!-- Left Panel: Leaderboard & Task Progress -->
+  <div class="panel">
+    <div class="progress-container">
+      <div class="progress-label">
+        <span>CREW FLEET MISSION PROGRESS</span>
+        <span id="progressPercentage">0%</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div id="progressBarFill" class="progress-bar-fill"></div>
+      </div>
+    </div>
+
+    <div class="panel-title">
+      <span>TEAMS LEADERBOARD</span>
+      <span id="teamsAliveCount" style="font-size:1rem; color:var(--text-muted);">20 Teams Active</span>
+    </div>
+
+    <div id="leaderboardGrid" class="leaderboard-grid">
+      <!-- Dynamic team cards -->
+    </div>
+  </div>
+
+  <!-- Right Panel: Live Activity Ticker -->
+  <div class="panel">
+    <div class="panel-title">📡 LIVE MISSION LOG</div>
+    <div id="activityFeed" class="activity-feed">
+      <div class="activity-item">System initialized. Awaiting game start signal from Admin Command...</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- EMERGENCY MEETING OVERLAY -->
+<div id="meetingOverlay" class="full-overlay">
+  <div class="alarm-title">🚨 EMERGENCY MEETING 🚨</div>
+  <p style="font-size:1.5rem; color:var(--text-muted); font-family:var(--font-sub);">ALL TEAMS REPORT TO ASSEMBLY AREA</p>
+  <div id="meetingTimerLarge" class="timer-large">01:30</div>
+  <div id="meetingPhaseSubtitle" style="font-family:var(--font-heading); font-size:1.8rem; color:var(--gold-accent);">DISCUSSION PHASE</div>
+</div>
+
+<!-- VICTORY OVERLAY -->
+<div id="victoryOverlay" class="full-overlay">
+  <div id="victoryTitle" class="alarm-title" style="color:var(--green-crew); text-shadow: 0 0 40px var(--green-glow);">CREW VICTORY!</div>
+  <p id="victorySubtitle" style="font-size:1.8rem; margin-bottom:30px; font-family:var(--font-sub);"></p>
+  <div id="awardCardsContainer" style="display:flex; gap:30px;">
+    <!-- Winner awards -->
+  </div>
+</div>
+
+<script>
+const socket = io();
+
+async function updateState() {
+  try {
+    const res = await fetch('/api/public/state');
+    const state = await res.json();
+    renderState(state);
+  } catch (err) {
+    console.error('State refresh failed', err);
+  }
+}
+
+function renderState(state) {
+  // Update phase
+  document.getElementById('gamePhaseDisplay').innerText = state.phase ? state.phase.toUpperCase() : 'IN PROGRESS';
+
+  // Update progress
+  const percent = state.taskProgress || 0;
+  document.getElementById('progressPercentage').innerText = `${percent}%`;
+  document.getElementById('progressBarFill').style.width = `${percent}%`;
+
+  // Update teams
+  const container = document.getElementById('leaderboardGrid');
+  const alive = state.teams.filter(t => t.status === 'alive').length;
+  document.getElementById('teamsAliveCount').innerText = `${alive} / ${state.teams.length} Teams Alive`;
+
+  container.innerHTML = state.teams.map((t, idx) => `
+    <div class="team-row ${t.status === 'eliminated' ? 'eliminated' : ''}">
+      <span class="team-rank">#${idx + 1}</span>
+      <span class="team-name">${t.name}</span>
+      <span class="team-stat" style="color:var(--green-crew);">${t.tasks_completed || 0} Tasks</span>
+      <span class="team-stat" style="color:var(--cyan-primary);">${t.score || 0} pts</span>
+      <span class="team-stat" style="color:${t.status === 'alive' ? 'var(--green-crew)' : 'var(--red-imposter)'}; font-size:0.9rem;">
+        ${t.status.toUpperCase()}
+      </span>
+    </div>
+  `).join('');
+}
+
+// Socket events
+socket.on('game:state', () => { updateState(); });
+socket.on('state:update', () => { updateState(); });
+
+socket.on('meeting:called', (data) => {
+  document.getElementById('meetingOverlay').classList.add('active');
+  document.getElementById('meetingPhaseSubtitle').innerText = `DISCUSSION PHASE${data?.calledBy ? ' (Called by ' + data.calledBy + ')' : ''}`;
+  addActivityLog(`🔔 Emergency meeting called${data?.calledBy ? ' by ' + data.calledBy : ''}`);
+});
+socket.on('meeting:start', () => {
+  document.getElementById('meetingOverlay').classList.add('active');
+  document.getElementById('meetingPhaseSubtitle').innerText = 'DISCUSSION PHASE';
+});
+
+socket.on('meeting:voting_open', () => {
+  document.getElementById('meetingPhaseSubtitle').innerText = 'VOTING PHASE OPEN';
+  addActivityLog('🗳️ Voting phase opened!');
+});
+socket.on('meeting:vote_opened', () => {
+  document.getElementById('meetingPhaseSubtitle').innerText = 'VOTING PHASE OPEN';
+});
+
+socket.on('meeting:result', (data) => {
+  document.getElementById('meetingOverlay').classList.remove('active');
+  addActivityLog(`📢 Meeting ended: ${data.ejectedName ? data.ejectedName + ' was ejected!' : 'No one was ejected.'}`);
+  updateState();
+});
+socket.on('meeting:closed', () => {
+  document.getElementById('meetingOverlay').classList.remove('active');
+  updateState();
+});
+socket.on('meeting:ended', (data) => {
+  document.getElementById('meetingOverlay').classList.remove('active');
+  addActivityLog(`Meeting ended. ${data?.ejected_team_name ? data.ejected_team_name + ' was ejected!' : 'No one was ejected.'}`);
+  updateState();
+});
+
+socket.on('kill:approved', (data) => {
+  if (data?.victimName) {
+    addActivityLog(`☠️ ${data.victimName} was eliminated!`);
+  }
+  updateState();
+});
+
+socket.on('game:over', (data) => {
+  const overlay = document.getElementById('victoryOverlay');
+  overlay.classList.add('active');
+  const title = document.getElementById('victoryTitle');
+  if (data.winner === 'crew') {
+    title.innerText = '🚀 CREW VICTORY! 🚀';
+    title.style.color = 'var(--green-crew)';
+  } else {
+    title.innerText = '🗡️ IMPOSTERS WIN! 🗡️';
+    title.style.color = 'var(--red-imposter)';
+  }
+  addActivityLog(`🏆 GAME OVER! ${data.winner === 'crew' ? 'Crew' : 'Imposters'} won!`);
+});
+socket.on('game:ended', (data) => {
+  const overlay = document.getElementById('victoryOverlay');
+  overlay.classList.add('active');
+  const title = document.getElementById('victoryTitle');
+  if (data.winner === 'crew') {
+    title.innerText = '🚀 CREW VICTORY! 🚀';
+    title.style.color = 'var(--green-crew)';
+  } else {
+    title.innerText = '🗡️ IMPOSTERS WIN! 🗡️';
+    title.style.color = 'var(--red-imposter)';
+  }
+});
+
+function addActivityLog(text) {
+  const feed = document.getElementById('activityFeed');
+  const item = document.createElement('div');
+  item.className = 'activity-item';
+  item.innerText = `[${new Date().toLocaleTimeString()}] ${text}`;
+  feed.prepend(item);
+}
+
+// Initial fetch
+updateState();
+setInterval(updateState, 10000);
+</script>
+</body>
+</html>

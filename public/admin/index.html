@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Admin — Taskforce Traitors</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0A0B14;--card:#12132A;--card2:#1a1b30;--crew:#00D4FF;--imp:#FF2D55;--meet:#FFB800;
+  --ok:#00E676;--text:#E8EAED;--sub:#8892A4;--border:rgba(255,255,255,.08);
+  --sidebar-w:220px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow:hidden}
+
+/* Layout */
+.layout{display:flex;height:100vh}
+
+/* Sidebar */
+.sidebar{width:var(--sidebar-w);background:var(--card);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sidebar-logo{padding:1.25rem 1rem .75rem;border-bottom:1px solid var(--border)}
+.sidebar-logo h1{font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:800;
+  background:linear-gradient(135deg,var(--crew),#7B6CFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:.05em}
+.sidebar-logo p{font-size:.7rem;color:var(--sub);letter-spacing:.08em;text-transform:uppercase;margin-top:.2rem}
+
+.nav{padding:.75rem .5rem;flex:1}
+.nav-item{display:flex;align-items:center;gap:.65rem;padding:.6rem .85rem;border-radius:10px;cursor:pointer;
+  transition:all .2s;color:var(--sub);font-size:.85rem;font-weight:500;margin-bottom:.15rem;position:relative}
+.nav-item:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.nav-item.active{background:rgba(0,212,255,.12);color:var(--crew)}
+.nav-item .icon{font-size:1.1rem;width:1.3rem;text-align:center}
+.nav-badge{position:absolute;right:.75rem;min-width:18px;height:18px;background:var(--imp);border-radius:9px;
+  font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 .35rem}
+.nav-badge.zero{display:none}
+
+.sidebar-bottom{padding:.75rem .5rem;border-top:1px solid var(--border)}
+
+/* Status bar in sidebar */
+.status-bar{padding:.6rem .85rem;font-size:.75rem}
+.status-row{display:flex;justify-content:space-between;margin-bottom:.3rem}
+.status-label{color:var(--sub)}
+.status-val{font-weight:600;font-family:'Orbitron',sans-serif;font-size:.8rem}
+.status-val.crew{color:var(--crew)}
+.status-val.imp{color:var(--imp)}
+.status-val.ok{color:var(--ok)}
+
+/* Phase pill */
+.phase-pill{display:inline-flex;align-items:center;gap:.4rem;padding:.25rem .65rem;border-radius:20px;
+  font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:'Orbitron',sans-serif}
+.phase-LOBBY{background:rgba(136,146,164,.2);color:var(--sub)}
+.phase-MISSION{background:rgba(0,230,118,.15);color:var(--ok)}
+.phase-MEETING{background:rgba(255,184,0,.15);color:var(--meet)}
+.phase-RESULT{background:rgba(255,45,85,.15);color:var(--imp)}
+
+/* Main content */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.5rem;
+  border-bottom:1px solid var(--border);background:rgba(18,19,42,.95);backdrop-filter:blur(10px);flex-shrink:0}
+.topbar-title{font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:600;color:var(--text)}
+.topbar-actions{display:flex;gap:.6rem;align-items:center}
+
+.content{flex:1;overflow-y:auto;padding:1.5rem}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.card-title{font-family:'Orbitron',sans-serif;font-size:.85rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--sub)}
+
+/* Grid layouts */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+
+/* Stat cards */
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;
+  display:flex;flex-direction:column;gap:.3rem}
+.stat-label{font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--sub)}
+.stat-val{font-family:'Orbitron',sans-serif;font-size:2rem;font-weight:800;line-height:1}
+.stat-sub{font-size:.75rem;color:var(--sub)}
+.stat-crew{border-top:3px solid var(--crew)}.stat-crew .stat-val{color:var(--crew)}
+.stat-imp{border-top:3px solid var(--imp)}.stat-imp .stat-val{color:var(--imp)}
+.stat-ok{border-top:3px solid var(--ok)}.stat-ok .stat-val{color:var(--ok)}
+.stat-meet{border-top:3px solid var(--meet)}.stat-meet .stat-val{color:var(--meet)}
+
+/* Buttons */
+.btn{padding:.5rem 1rem;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:.8rem;
+  font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:.4rem}
+.btn-primary{background:linear-gradient(135deg,var(--crew),#0099CC);color:#000}
+.btn-danger{background:linear-gradient(135deg,var(--imp),#CC0033);color:#fff}
+.btn-warn{background:linear-gradient(135deg,var(--meet),#CC8800);color:#000}
+.btn-ok{background:linear-gradient(135deg,var(--ok),#00A854);color:#000}
+.btn-ghost{background:rgba(255,255,255,.07);color:var(--text);border:1px solid var(--border)}
+.btn-sm{padding:.3rem .7rem;font-size:.75rem}
+.btn:hover{filter:brightness(1.15);transform:translateY(-1px)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;filter:none}
+
+/* Table */
+.table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{padding:.65rem 1rem;text-align:left;font-size:.7rem;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--sub);background:rgba(255,255,255,.03);border-bottom:1px solid var(--border)}
+td{padding:.65rem 1rem;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+
+/* Role/status chips */
+.chip{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .55rem;border-radius:20px;
+  font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.chip-crew{background:rgba(0,212,255,.15);color:var(--crew)}
+.chip-imp{background:rgba(255,45,85,.15);color:var(--imp)}
+.chip-alive{background:rgba(0,230,118,.15);color:var(--ok)}
+.chip-eliminated{background:rgba(136,146,164,.15);color:var(--sub)}
+.chip-pending{background:rgba(255,184,0,.15);color:var(--meet)}
+.chip-approved{background:rgba(0,230,118,.15);color:var(--ok)}
+.chip-rejected{background:rgba(255,45,85,.15);color:var(--imp)}
+
+/* Forms */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem}
+.form-group{display:flex;flex-direction:column;gap:.35rem;margin-bottom:.75rem}
+.form-group label{font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sub)}
+.form-group input,.form-group select,.form-group textarea{
+  background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;
+  padding:.55rem .85rem;color:var(--text);font-family:'Inter',sans-serif;font-size:.85rem;outline:none;transition:all .2s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--crew)}
+.form-group textarea{resize:vertical;min-height:80px}
+select option{background:#1a1b2e}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:100;
+  display:none;align-items:center;justify-content:center;padding:1rem}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:1.75rem;
+  width:100%;max-width:520px;max-height:85vh;overflow-y:auto}
+.modal-title{font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:700;margin-bottom:1.25rem}
+.modal-actions{display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.25rem}
+
+/* Activity feed */
+.feed{display:flex;flex-direction:column;gap:.5rem;max-height:300px;overflow-y:auto}
+.feed-item{display:flex;gap:.75rem;padding:.5rem .75rem;background:rgba(255,255,255,.03);
+  border-radius:8px;font-size:.8rem;border-left:3px solid var(--border)}
+.feed-item.ELIMINATION{border-left-color:var(--imp)}
+.feed-item.MEETING_CALLED,.feed-item.EJECTION{border-left-color:var(--meet)}
+.feed-item.TASK_COMPLETED,.feed-item.TASK_VERIFIED{border-left-color:var(--ok)}
+.feed-item.GAME_OVER,.feed-item.GAME_STARTED{border-left-color:var(--crew)}
+.feed-time{color:var(--sub);flex-shrink:0;font-size:.72rem;margin-top:.1rem}
+.feed-text{flex:1}
+
+/* Progress bar */
+.progress-wrap{background:rgba(255,255,255,.07);border-radius:20px;height:8px;overflow:hidden}
+.progress-bar{height:100%;border-radius:20px;transition:width .5s ease;
+  background:linear-gradient(90deg,var(--crew),#7B6CFF)}
+
+/* Meeting controls */
+.meeting-box{background:rgba(255,184,0,.08);border:1px solid rgba(255,184,0,.2);border-radius:12px;
+  padding:1rem 1.25rem;margin-bottom:1rem}
+.meeting-timer{font-family:'Orbitron',sans-serif;font-size:2rem;font-weight:800;color:var(--meet);
+  text-align:center;margin:.5rem 0}
+
+/* Toast notifications */
+#toast-container{position:fixed;top:1rem;right:1rem;z-index:999;display:flex;flex-direction:column;gap:.5rem}
+.toast{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;
+  font-size:.82rem;display:flex;align-items:center;gap:.5rem;animation:slideIn .3s ease;min-width:250px;max-width:350px}
+.toast.success{border-left:4px solid var(--ok)}
+.toast.error{border-left:4px solid var(--imp)}
+.toast.info{border-left:4px solid var(--crew)}
+.toast.warn{border-left:4px solid var(--meet)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* Page sections */
+.section{display:none}.section.active{display:block}
+
+/* Kill panel highlight */
+.kill-card{background:rgba(255,45,85,.06);border:1px solid rgba(255,45,85,.2);border-radius:12px;padding:1rem;margin-bottom:.75rem}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:10px}
+
+/* Responsive tweak for smaller windows */
+@media(max-width:900px){
+  .sidebar{width:60px}
+  .nav-item span:not(.icon){display:none}
+  .nav-item .icon{margin:0}
+  .sidebar-logo h1,.sidebar-logo p,.status-bar{display:none}
+  .grid-4{grid-template-columns:1fr 1fr}
+}
+
+/* CSV Import textarea */
+.csv-hint{font-size:.72rem;color:var(--sub);margin-top:.35rem}
+</style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<div class="layout">
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>🛸 Taskforce</h1>
+      <p>Command Center</p>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-item active" onclick="showSection('overview')" id="nav-overview">
+        <span class="icon">📊</span><span>Overview</span>
+      </div>
+      <div class="nav-item" onclick="showSection('teams')" id="nav-teams">
+        <span class="icon">👥</span><span>Teams</span>
+      </div>
+      <div class="nav-item" onclick="showSection('tasks')" id="nav-tasks">
+        <span class="icon">📋</span><span>Task Manager</span>
+      </div>
+      <div class="nav-item" onclick="showSection('stations')" id="nav-stations">
+        <span class="icon">📍</span><span>Stations</span>
+      </div>
+      <div class="nav-item" onclick="showSection('verify')" id="nav-verify">
+        <span class="icon">🔍</span><span>Verify Queue</span>
+        <span class="nav-badge zero" id="badge-verify">0</span>
+      </div>
+      <div class="nav-item" onclick="showSection('kills')" id="nav-kills">
+        <span class="icon">☠️</span><span>Eliminations</span>
+        <span class="nav-badge zero" id="badge-kills">0</span>
+      </div>
+      <div class="nav-item" onclick="showSection('meetings')" id="nav-meetings">
+        <span class="icon">🗳️</span><span>Meetings</span>
+      </div>
+      <div class="nav-item" onclick="showSection('timeline')" id="nav-timeline">
+        <span class="icon">📜</span><span>Timeline</span>
+      </div>
+      <div class="nav-item" onclick="showSection('analytics')" id="nav-analytics">
+        <span class="icon">🏆</span><span>Analytics</span>
+      </div>
+      <div class="nav-item" onclick="showSection('settings')" id="nav-settings">
+        <span class="icon">⚙️</span><span>Settings</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="status-bar">
+        <div class="status-row"><span class="status-label">Crew</span><span class="status-val crew" id="sb-crew">—</span></div>
+        <div class="status-row"><span class="status-label">Imposters</span><span class="status-val imp" id="sb-imp">—</span></div>
+        <div class="status-row"><span class="status-label">Phase</span>
+          <span class="phase-pill phase-LOBBY" id="sb-phase">LOBBY</span>
+        </div>
+      </div>
+      <div class="nav-item" onclick="logout()" style="margin-top:.5rem">
+        <span class="icon">🚪</span><span>Logout</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Overview</div>
+      <div class="topbar-actions">
+        <span id="phase-display" class="phase-pill phase-LOBBY">LOBBY</span>
+        <button class="btn btn-ok btn-sm" onclick="startGame()" id="btn-start-game">▶ Start Game</button>
+        <button class="btn btn-danger btn-sm" onclick="endGamePrompt()">■ End Game</button>
+        <button class="btn btn-ghost btn-sm" onclick="resetGame()">↺ Reset</button>
+      </div>
+    </div>
+
+    <div class="content" id="main-content">
+
+      <!-- ════ OVERVIEW ════ -->
+      <div class="section active" id="section-overview">
+        <div class="grid-4" style="margin-bottom:1rem">
+          <div class="stat-card stat-crew">
+            <div class="stat-label">Crew Alive</div>
+            <div class="stat-val" id="stat-crew">—</div>
+            <div class="stat-sub" id="stat-crew-sub">of — total</div>
+          </div>
+          <div class="stat-card stat-imp">
+            <div class="stat-label">Imposters Alive</div>
+            <div class="stat-val" id="stat-imp">—</div>
+            <div class="stat-sub" id="stat-imp-sub">of — total</div>
+          </div>
+          <div class="stat-card stat-ok">
+            <div class="stat-label">Tasks Complete</div>
+            <div class="stat-val" id="stat-tasks">—</div>
+            <div class="stat-sub" id="stat-tasks-sub">of — total</div>
+          </div>
+          <div class="stat-card stat-meet">
+            <div class="stat-label">Pending Actions</div>
+            <div class="stat-val" id="stat-pending">—</div>
+            <div class="stat-sub">kills + verifications</div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-bottom:1rem">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Mission Progress</div>
+            </div>
+            <div class="progress-wrap" style="margin-bottom:.5rem">
+              <div class="progress-bar" id="task-progress-bar" style="width:0%"></div>
+            </div>
+            <div style="font-size:.75rem;color:var(--sub);text-align:right" id="task-pct">0%</div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Crew vs Imposters</div>
+            </div>
+            <div style="display:flex;gap:1rem;align-items:center">
+              <div style="text-align:center;flex:1">
+                <div style="font-family:'Orbitron',sans-serif;font-size:2.5rem;font-weight:800;color:var(--crew)" id="ov-crew">0</div>
+                <div style="font-size:.7rem;color:var(--sub);text-transform:uppercase;letter-spacing:.1em">Crew</div>
+              </div>
+              <div style="font-size:1.5rem;color:var(--sub)">VS</div>
+              <div style="text-align:center;flex:1">
+                <div style="font-family:'Orbitron',sans-serif;font-size:2.5rem;font-weight:800;color:var(--imp)" id="ov-imp">0</div>
+                <div style="font-size:.7rem;color:var(--sub);text-transform:uppercase;letter-spacing:.1em">Imposters</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Live Activity Feed</div>
+            <button class="btn btn-ghost btn-sm" onclick="loadActivity()">↺ Refresh</button>
+          </div>
+          <div class="feed" id="overview-feed"></div>
+        </div>
+      </div>
+
+      <!-- ════ TEAMS ════ -->
+      <div class="section" id="section-teams">
+        <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-primary" onclick="openModal('modal-add-team')">+ Add Team</button>
+          <button class="btn btn-ghost" onclick="openModal('modal-bulk-team')">📥 Bulk CSV Import</button>
+          <button class="btn btn-warn" onclick="assignRoles()">🎲 Assign Roles</button>
+          <button class="btn btn-ghost" onclick="printPINs()">🖨️ Print PINs</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>#</th><th>Team Name</th><th>Members</th><th>Role</th><th>Status</th>
+              <th>Volunteer</th><th>PIN</th><th>Points</th><th>Kills</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="teams-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ════ TASKS ════ -->
+      <div class="section" id="section-tasks">
+        <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="openModal('modal-add-task')">+ Add Task</button>
+          <button class="btn btn-ghost" onclick="openModal('modal-auto-assign')">⚡ Auto-Assign</button>
+          <button class="btn btn-ghost" onclick="loadTasks()">↺ Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Title</th><th>Type</th><th>Station</th><th>Points</th><th>Difficulty</th>
+              <th>Verify</th><th>Bonus</th><th>Active</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="tasks-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ════ STATIONS ════ -->
+      <div class="section" id="section-stations">
+        <div style="display:flex;gap:.75rem;margin-bottom:1rem">
+          <button class="btn btn-primary" onclick="openModal('modal-add-station')">+ Add Station</button>
+          <button class="btn btn-ghost" onclick="loadStations()">↺ Refresh</button>
+        </div>
+        <div id="stations-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem"></div>
+      </div>
+
+      <!-- ════ VERIFY QUEUE ════ -->
+      <div class="section" id="section-verify">
+        <div style="display:flex;gap:.75rem;margin-bottom:1rem">
+          <button class="btn btn-ghost" onclick="loadVerifyQueue()">↺ Refresh Queue</button>
+        </div>
+        <div id="verify-list"></div>
+      </div>
+
+      <!-- ════ KILLS ════ -->
+      <div class="section" id="section-kills">
+        <div style="display:flex;gap:.75rem;margin-bottom:1rem">
+          <button class="btn btn-ghost" onclick="loadKills()">↺ Refresh</button>
+        </div>
+        <h3 style="font-size:.85rem;color:var(--sub);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.75rem">Pending Approval</h3>
+        <div id="kills-pending-list" style="margin-bottom:1.5rem"></div>
+        <h3 style="font-size:.85rem;color:var(--sub);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.75rem">Kill History</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Imposter Team</th><th>Victim Team</th><th>Evidence</th><th>Time</th><th>Status</th></tr></thead>
+          <tbody id="kills-history-body"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ════ MEETINGS ════ -->
+      <div class="section" id="section-meetings">
+        <div id="active-meeting-box" style="display:none">
+          <div class="meeting-box">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+              <div style="font-family:'Orbitron',sans-serif;font-size:.85rem;color:var(--meet)">🗳️ ACTIVE MEETING</div>
+              <span class="chip chip-pending" id="meeting-phase-chip">Discussion</span>
+            </div>
+            <div class="meeting-timer" id="meeting-timer">0:00</div>
+            <div style="text-align:center;font-size:.8rem;color:var(--sub);margin-bottom:1rem" id="meeting-status-txt">Discussion in progress…</div>
+            <div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap">
+              <button class="btn btn-warn" id="btn-open-voting" onclick="openVoting()">Open Voting</button>
+              <button class="btn btn-primary" id="btn-reveal" onclick="revealResult()">Reveal Result</button>
+              <button class="btn btn-ghost" onclick="closeMeeting()">Close Meeting</button>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:1rem">
+            <div class="card-header"><div class="card-title">Live Vote Tally</div></div>
+            <div id="vote-tally-display"></div>
+          </div>
+        </div>
+        <div id="no-meeting-box">
+          <div class="card">
+            <div class="card-header"><div class="card-title">No Active Meeting</div></div>
+            <div class="form-group">
+              <label>Called By (team ID or leave blank for admin)</label>
+              <input type="text" id="meeting-team-id" placeholder="Team ID (optional)"/>
+            </div>
+            <div class="form-group">
+              <label>Reason</label>
+              <input type="text" id="meeting-reason" placeholder="Reason for meeting…"/>
+            </div>
+            <button class="btn btn-warn" onclick="startMeeting()">🔔 Start Emergency Meeting</button>
+          </div>
+        </div>
+        <div class="card" style="margin-top:1rem">
+          <div class="card-header"><div class="card-title">Meeting History</div></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Called By</th><th>Time</th><th>Phase</th><th>Voted Out</th><th>Was Imposter?</th></tr></thead>
+            <tbody id="meetings-history-body"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- ════ TIMELINE ════ -->
+      <div class="section" id="section-timeline">
+        <div style="display:flex;gap:.75rem;margin-bottom:1rem">
+          <button class="btn btn-ghost" onclick="loadTimeline()">↺ Refresh</button>
+        </div>
+        <div class="card">
+          <div class="feed" style="max-height:600px" id="timeline-feed"></div>
+        </div>
+      </div>
+
+      <!-- ════ ANALYTICS ════ -->
+      <div class="section" id="section-analytics">
+        <div style="display:flex;gap:.75rem;margin-bottom:1rem">
+          <button class="btn btn-ghost" onclick="loadLeaderboard()">↺ Refresh</button>
+          <button class="btn btn-ok" onclick="exportCSV()">⬇ Export CSV</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr>
+            <th>Rank</th><th>Team</th><th>Role</th><th>Status</th>
+            <th>Tasks ✓</th><th>Points</th><th>Kills</th><th>Achievements</th>
+          </tr></thead>
+          <tbody id="leaderboard-body"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ════ SETTINGS ════ -->
+      <div class="section" id="section-settings">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Game Settings</div>
+            <button class="btn btn-primary btn-sm" onclick="saveSettings()">Save Settings</button>
+          </div>
+          <div class="grid-2">
+            <div class="form-group"><label>Crew Task Win % (e.g. 70)</label>
+              <input type="number" id="s-crew-task-win" min="1" max="100"/></div>
+            <div class="form-group"><label>Imposter Win Ratio (imposter/crew ≥ this)</label>
+              <input type="number" id="s-imp-ratio" min="0.1" step="0.1"/></div>
+            <div class="form-group"><label>Discussion Timer (seconds)</label>
+              <input type="number" id="s-disc-timer" min="30"/></div>
+            <div class="form-group"><label>Voting Timer (seconds)</label>
+              <input type="number" id="s-vote-timer" min="30"/></div>
+            <div class="form-group"><label>Kill Ack Window (seconds)</label>
+              <input type="number" id="s-kill-ack" min="30"/></div>
+            <div class="form-group"><label>Max Meetings per Team</label>
+              <input type="number" id="s-max-meetings" min="1"/></div>
+            <div class="form-group"><label>Tie Vote Action</label>
+              <select id="s-tie-vote">
+                <option value="skip">Skip (no ejection)</option>
+                <option value="revote">Re-vote</option>
+              </select></div>
+            <div class="form-group"><label>Total Imposter Teams</label>
+              <input type="number" id="s-imp-count" min="1" max="10"/></div>
+            <div class="form-group"><label>Tasks per Team (min)</label>
+              <input type="number" id="s-task-min" min="1"/></div>
+            <div class="form-group"><label>Tasks per Team (max)</label>
+              <input type="number" id="s-task-max" min="1"/></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- ════ MODALS ════ -->
+
+<!-- Add Team -->
+<div class="modal-overlay" id="modal-add-team">
+  <div class="modal">
+    <div class="modal-title">➕ Add Team</div>
+    <div class="form-group"><label>Team Name</label><input type="text" id="at-name" placeholder="e.g. Team Alpha"/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Member 1 (Volunteer)</label><input type="text" id="at-m1" placeholder="Name"/></div>
+      <div class="form-group"><label>Member 2</label><input type="text" id="at-m2" placeholder="Name"/></div>
+    </div>
+    <div class="form-group"><label>Member 3</label><input type="text" id="at-m3" placeholder="Name"/></div>
+    <div class="form-group"><label>Volunteer Name (gets PIN)</label><input type="text" id="at-vol" placeholder="Volunteer's name"/></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-team')">Cancel</button>
+      <button class="btn btn-primary" onclick="addTeam()">Create Team</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk CSV Import -->
+<div class="modal-overlay" id="modal-bulk-team">
+  <div class="modal">
+    <div class="modal-title">📥 Bulk Team Import</div>
+    <p style="font-size:.82rem;color:var(--sub);margin-bottom:1rem">
+      One team per line: <code style="color:var(--crew)">TeamName,Member1,Member2,Member3,VolunteerName</code>
+    </p>
+    <div class="form-group">
+      <label>CSV Data</label>
+      <textarea id="bulk-csv" rows="10" placeholder="Team Alpha,Alice,Bob,Carol,Alice&#10;Team Beta,Dave,Eve,Frank,Dave"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-bulk-team')">Cancel</button>
+      <button class="btn btn-primary" onclick="bulkImport()">Import All</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Task -->
+<div class="modal-overlay" id="modal-add-task">
+  <div class="modal">
+    <div class="modal-title">➕ Add Task</div>
+    <div class="form-row">
+      <div class="form-group"><label>Title</label><input type="text" id="tk-title" placeholder="Task title"/></div>
+      <div class="form-group"><label>Type</label>
+        <select id="tk-type">
+          <option value="code_entry">Code Entry</option>
+          <option value="quiz">Quiz</option>
+          <option value="cipher">Cipher</option>
+          <option value="photo_proof">Photo Proof</option>
+          <option value="find_object">Find Object</option>
+          <option value="navigation">Navigation</option>
+          <option value="team_challenge">Team Challenge</option>
+          <option value="timed_challenge">Timed Challenge</option>
+          <option value="interaction">Interaction</option>
+          <option value="investigation">Investigation</option>
+          <option value="digital_puzzle">Digital Puzzle</option>
+          <option value="bonus_mission">Bonus Mission</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Description</label><textarea id="tk-desc" rows="3"></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Points</label><input type="number" id="tk-points" value="10"/></div>
+      <div class="form-group"><label>Difficulty</label>
+        <select id="tk-diff"><option>easy</option><option selected>medium</option><option>hard</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Station</label>
+        <select id="tk-station"><option value="">— No station —</option></select></div>
+      <div class="form-group"><label>Time Limit (sec, 0=none)</label><input type="number" id="tk-timelimit" value="0"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Verification</label>
+        <select id="tk-verif"><option value="manual">Manual (admin)</option><option value="auto">Auto-grade</option></select></div>
+      <div class="form-group" id="tk-answer-group"><label>Correct Answer</label><input type="text" id="tk-answer" placeholder="For auto-graded types"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Hint (optional)</label><input type="text" id="tk-hint"/></div>
+      <div class="form-group" style="justify-content:flex-end;flex-direction:row;align-items:center;gap:.75rem">
+        <label style="text-transform:none;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:.4rem">
+          <input type="checkbox" id="tk-bonus"/> Bonus task
+        </label>
+        <label style="text-transform:none;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:.4rem">
+          <input type="checkbox" id="tk-active" checked/> Active
+        </label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-task')">Cancel</button>
+      <button class="btn btn-primary" onclick="createTask()">Create Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Station -->
+<div class="modal-overlay" id="modal-add-station">
+  <div class="modal">
+    <div class="modal-title">📍 Add Station</div>
+    <div class="form-group"><label>Station Name</label><input type="text" id="st-name"/></div>
+    <div class="form-group"><label>Description</label><textarea id="st-desc" rows="2"></textarea></div>
+    <div class="form-group"><label>Physical Location Note</label><input type="text" id="st-loc" placeholder="e.g. Near main gate, Room 201"/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Max Teams at Once</label><input type="number" id="st-cap" value="3"/></div>
+      <div class="form-group" style="justify-content:flex-end;align-items:flex-end">
+        <label style="text-transform:none;cursor:pointer;display:flex;align-items:center;gap:.4rem">
+          <input type="checkbox" id="st-active" checked/> Active
+        </label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-station')">Cancel</button>
+      <button class="btn btn-primary" onclick="createStation()">Create Station</button>
+    </div>
+  </div>
+</div>
+
+<!-- Auto-Assign Tasks -->
+<div class="modal-overlay" id="modal-auto-assign">
+  <div class="modal">
+    <div class="modal-title">⚡ Auto-Assign Tasks</div>
+    <p style="font-size:.82rem;color:var(--sub);margin-bottom:1rem">
+      Set how many of each type to assign per team. Leave 0 to skip a type. Remainder filled randomly.
+    </p>
+    <div class="grid-2" id="quota-inputs"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-auto-assign')">Cancel</button>
+      <button class="btn btn-primary" onclick="autoAssign()">Auto-Assign to All Teams</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const socket = io();
+let state    = {};
+let stations = [];
+let activeMeetingId = null;
+let meetingTimerInterval = null;
+
+// ─── Socket events ─────────────────────────────────────────────────────────
+socket.on('game:state',       s  => { state = s; updateSidebar(); updateOverview(); updateBadges(s); });
+socket.on('game:phase',       () => { loadOverview(); });
+socket.on('kill:reported',    d  => { toast('warn', `⚠️ Kill reported: ${d.imposterName} → ${d.victimName}`); loadKills(); });
+socket.on('kill:approved',    d  => { toast('error', `☠️ ${d.victimName} eliminated!`); loadKills(); loadOverview(); });
+socket.on('meeting:called',   d  => { toast('warn', `🔔 Meeting called by ${d.calledBy}`); loadMeetingState(); });
+socket.on('meeting:voting_open', d => { toast('info', `🗳️ Voting open!`); loadMeetingState(); });
+socket.on('meeting:result',   d  => { toast('info', `📢 Result: ${d.ejectedName||'No ejection'}`); loadMeetingState(); loadTimeline(); loadOverview(); });
+socket.on('meeting:closed',   () => { loadMeetingState(); loadOverview(); });
+socket.on('vote:tally',       d  => { updateVoteTally(d.tally); });
+socket.on('meeting:voting_ended', () => { toast('warn', '⏰ Voting closed — click Reveal Result'); });
+socket.on('task:submitted',   () => { toast('info', '📝 New task verification submitted'); loadVerifyQueue(); });
+socket.on('task:started',     () => { loadOverview(); });
+socket.on('task:verified',    () => { loadVerifyQueue(); loadOverview(); });
+socket.on('game:over',        d  => { toast('info', `🏆 Game over! ${d.winner} wins!`); loadOverview(); });
+
+// ─── Navigation ────────────────────────────────────────────────────────────
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  document.getElementById(`section-${name}`)?.classList.add('active');
+  document.getElementById(`nav-${name}`)?.classList.add('active');
+  document.getElementById('topbar-title').textContent = name.charAt(0).toUpperCase()+name.slice(1);
+  // Load data for that section
+  const loaders = {
+    overview: () => { loadOverview(); loadActivity(); },
+    teams: loadTeams, tasks: loadTasks, stations: loadStations,
+    verify: loadVerifyQueue, kills: loadKills,
+    meetings: loadMeetingState, timeline: loadTimeline,
+    analytics: loadLeaderboard, settings: loadSettings
+  };
+  loaders[name]?.();
+}
+
+// ─── Update sidebar ────────────────────────────────────────────────────────
+function updateSidebar() {
+  document.getElementById('sb-crew').textContent = state.crewAlive ?? '—';
+  document.getElementById('sb-imp').textContent  = state.imposterAlive ?? '—';
+  const ph = state.gamePhase || 'LOBBY';
+  const pill = document.getElementById('sb-phase');
+  pill.textContent = ph;
+  pill.className   = `phase-pill phase-${ph}`;
+  const phd = document.getElementById('phase-display');
+  phd.textContent  = ph;
+  phd.className    = `phase-pill phase-${ph}`;
+}
+
+function updateBadges(s) {
+  const vb = document.getElementById('badge-verify');
+  const kb = document.getElementById('badge-kills');
+  vb.textContent = s.pendingVerif || 0;
+  kb.textContent = s.pendingKills || 0;
+  vb.classList.toggle('zero', !s.pendingVerif);
+  kb.classList.toggle('zero', !s.pendingKills);
+}
+
+// ─── Overview ──────────────────────────────────────────────────────────────
+async function loadOverview() {
+  const res  = await api('/api/admin/overview');
+  state      = res;
+  updateOverview();
+}
+function updateOverview() {
+  if (!state.crewAlive && state.crewAlive !== 0) return;
+  document.getElementById('stat-crew').textContent     = state.crewAlive;
+  document.getElementById('stat-crew-sub').textContent = `of ${state.crewTotal} total`;
+  document.getElementById('stat-imp').textContent      = state.imposterAlive;
+  document.getElementById('stat-imp-sub').textContent  = `of ${state.imposterTotal} total`;
+  document.getElementById('stat-tasks').textContent    = state.completedTasks;
+  document.getElementById('stat-tasks-sub').textContent = `of ${state.totalTasks} total`;
+  document.getElementById('stat-pending').textContent  = (state.pendingKills||0)+(state.pendingVerif||0);
+  document.getElementById('ov-crew').textContent       = state.crewAlive;
+  document.getElementById('ov-imp').textContent        = state.imposterAlive;
+  const pct = state.totalTasks ? Math.round(state.completedTasks/state.totalTasks*100) : 0;
+  document.getElementById('task-progress-bar').style.width = pct+'%';
+  document.getElementById('task-pct').textContent = pct+'%';
+}
+
+async function loadActivity() {
+  const feed = document.getElementById('overview-feed');
+  const rows = await api('/api/admin/activity?limit=20');
+  feed.innerHTML = rows.map(r => `
+    <div class="feed-item ${r.type}">
+      <span class="feed-time">${fmtTime(r.timestamp)}</span>
+      <span class="feed-text">${r.description}</span>
+    </div>`).join('') || '<div style="color:var(--sub);font-size:.8rem">No activity yet</div>';
+}
+
+// ─── Teams ─────────────────────────────────────────────────────────────────
+async function loadTeams() {
+  const teams = await api('/api/admin/teams');
+  const tbody = document.getElementById('teams-table-body');
+  tbody.innerHTML = teams.map((t,i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td><b>${esc(t.name)}</b></td>
+      <td style="font-size:.75rem">${[t.member1,t.member2,t.member3].filter(Boolean).join(', ')}</td>
+      <td><span class="chip chip-${t.role}">${t.role}</span></td>
+      <td><span class="chip chip-${t.status}">${t.status}</span></td>
+      <td style="font-size:.75rem">${t.volunteer?.name||'—'}</td>
+      <td style="font-family:'Orbitron',sans-serif;font-size:.85rem;color:var(--meet)">${t.volunteer?.pin_display||'—'}</td>
+      <td>${t.total_points}</td>
+      <td>${t.kill_count}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="deleteTeam('${t.id}','${esc(t.name)}')">🗑</button>
+        ${!t.volunteer ? `<button class="btn btn-ghost btn-sm" onclick="addVolunteer('${t.id}')">+Vol</button>` : ''}
+      </td>
+    </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--sub);padding:2rem">No teams yet</td></tr>';
+}
+
+async function addTeam() {
+  const name = v('at-name'), m1=v('at-m1'), m2=v('at-m2'), m3=v('at-m3'), vol=v('at-vol');
+  if (!name) { toast('error','Team name required'); return; }
+  await api('/api/admin/teams','POST',{name,member1:m1,member2:m2,member3:m3,volunteerName:vol});
+  toast('ok','Team created!');
+  closeModal('modal-add-team');
+  loadTeams();
+}
+
+async function deleteTeam(id, name) {
+  if (!confirm(`Delete team "${name}"?`)) return;
+  await api(`/api/admin/teams/${id}`,'DELETE');
+  toast('ok','Team deleted'); loadTeams();
+}
+
+async function addVolunteer(teamId) {
+  const name = prompt('Volunteer name?');
+  if (!name) return;
+  const r = await api(`/api/admin/teams/${teamId}/volunteer`,'POST',{name});
+  toast('ok',`Volunteer created! PIN: ${r.pin}`);
+  alert(`Volunteer PIN: ${r.pin} — write this down!`);
+  loadTeams();
+}
+
+async function bulkImport() {
+  const csv = v('bulk-csv');
+  const teams = csv.trim().split('\n').map(line => {
+    const [name,m1,m2,m3,vol] = line.split(',').map(s=>s.trim());
+    return { name, member1:m1, member2:m2, member3:m3, volunteerName:vol };
+  }).filter(t => t.name);
+  if (!teams.length) { toast('error','No valid rows found'); return; }
+  const r = await api('/api/admin/teams/bulk','POST',{teams});
+  toast('ok',`Imported ${r.results.filter(x=>!x.error).length} of ${r.results.length} teams`);
+  closeModal('modal-bulk-team');
+  loadTeams();
+}
+
+async function assignRoles() {
+  if (!confirm('Randomly assign Crew/Imposter roles to all teams? This will overwrite any existing assignment.')) return;
+  const r = await api('/api/admin/assign-roles','POST',{});
+  toast('ok',`Roles assigned! ${r.imposterCount} imposters, ${r.crewCount} crew`);
+  loadTeams();
+}
+
+function printPINs() {
+  api('/api/admin/teams').then(teams => {
+    const win = window.open('','_blank');
+    win.document.write(`<style>body{font-family:sans-serif;padding:2rem}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:.5rem}@media print{button{display:none}}</style>
+      <h2>Taskforce Traitors — Team PINs</h2>
+      <button onclick="window.print()">🖨 Print</button>
+      <table><thead><tr><th>#</th><th>Team</th><th>Volunteer</th><th>PIN</th></tr></thead>
+      <tbody>${teams.map((t,i)=>`<tr><td>${i+1}</td><td>${t.name}</td><td>${t.volunteer?.name||'-'}</td><td><b>${t.volunteer?.pin_display||'-'}</b></td></tr>`).join('')}</tbody></table>`);
+  });
+}
+
+// ─── Tasks ─────────────────────────────────────────────────────────────────
+async function loadTasks() {
+  const tasks = await api('/api/admin/tasks');
+  const tbody = document.getElementById('tasks-table-body');
+  tbody.innerHTML = tasks.map(t => `
+    <tr>
+      <td><b>${esc(t.title)}</b><div style="font-size:.7rem;color:var(--sub)">${esc(t.hint||'')}</div></td>
+      <td><span class="chip chip-${t.type.includes('bonus')?'imp':'crew'}" style="font-size:.65rem">${t.type.replace(/_/g,' ')}</span></td>
+      <td style="font-size:.75rem">${esc(t.station_name||'—')}</td>
+      <td>${t.points}</td>
+      <td><span class="chip chip-${t.difficulty==='hard'?'imp':t.difficulty==='easy'?'approved':'pending'}">${t.difficulty}</span></td>
+      <td style="font-size:.75rem">${t.verification_type}</td>
+      <td>${t.is_bonus?'⭐':''}</td>
+      <td>${t.is_active?'✅':'❌'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="deleteTask('${t.id}')">🗑</button></td>
+    </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--sub);padding:2rem">No tasks yet</td></tr>';
+}
+
+async function createTask() {
+  const data = {
+    title: v('tk-title'), description: v('tk-desc'), type: v('tk-type'),
+    station_id: v('tk-station'), difficulty: v('tk-diff'), points: parseInt(v('tk-points'))||10,
+    time_limit: parseInt(v('tk-timelimit'))||null, verification_type: v('tk-verif'),
+    correct_answer: v('tk-answer'), hint: v('tk-hint'),
+    is_bonus: document.getElementById('tk-bonus').checked,
+    is_active: document.getElementById('tk-active').checked
+  };
+  if (!data.title) { toast('error','Title required'); return; }
+  await api('/api/admin/tasks','POST',data);
+  toast('ok','Task created!'); closeModal('modal-add-task'); loadTasks();
+}
+
+async function deleteTask(id) {
+  if (!confirm('Delete task?')) return;
+  await api(`/api/admin/tasks/${id}`,'DELETE');
+  toast('ok','Task deleted'); loadTasks();
+}
+
+async function autoAssign() {
+  const types = ['code_entry','quiz','cipher','photo_proof','find_object','navigation','team_challenge','timed_challenge','interaction','investigation','digital_puzzle','bonus_mission'];
+  const quotas = {};
+  types.forEach(t => {
+    const n = parseInt(document.getElementById(`q-${t}`)?.value)||0;
+    if (n>0) quotas[t]=n;
+  });
+  const r = await api('/api/admin/tasks/auto-assign','POST',{quotas});
+  toast('ok',`${r.assigned} task assignments created`);
+  closeModal('modal-auto-assign');
+}
+
+function openAutoAssignModal() {
+  const types = ['code_entry','quiz','cipher','photo_proof','find_object','navigation','team_challenge','timed_challenge','interaction','investigation','digital_puzzle','bonus_mission'];
+  document.getElementById('quota-inputs').innerHTML = types.map(t => `
+    <div class="form-group"><label>${t.replace(/_/g,' ')}</label>
+    <input type="number" id="q-${t}" value="0" min="0"/></div>`).join('');
+  openModal('modal-auto-assign');
+}
+
+// ─── Stations ──────────────────────────────────────────────────────────────
+async function loadStations() {
+  stations = await api('/api/admin/stations');
+  // Populate task station select
+  const sel = document.getElementById('tk-station');
+  if (sel) {
+    sel.innerHTML = '<option value="">— No station —</option>' +
+      stations.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  }
+  const grid = document.getElementById('stations-grid');
+  grid.innerHTML = stations.map(s => `
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">${esc(s.name)}</div>
+        <button class="btn btn-ghost btn-sm" onclick="deleteStation('${s.id}')">🗑</button>
+      </div>
+      <div style="font-size:.8rem;color:var(--sub);margin-bottom:.5rem">${esc(s.description||'')}</div>
+      <div style="font-size:.78rem;display:flex;flex-direction:column;gap:.3rem">
+        <div>📍 ${esc(s.location_note||'No location set')}</div>
+        <div>👥 Max ${s.capacity} teams</div>
+        <div>${s.is_active?'✅ Active':'❌ Inactive'}</div>
+      </div>
+    </div>`).join('') || '<div style="color:var(--sub);padding:2rem">No stations yet</div>';
+}
+
+async function createStation() {
+  const data = { name:v('st-name'), description:v('st-desc'), location_note:v('st-loc'),
+    capacity:parseInt(v('st-cap'))||3, is_active:document.getElementById('st-active').checked };
+  if (!data.name) { toast('error','Name required'); return; }
+  await api('/api/admin/stations','POST',data);
+  toast('ok','Station created!'); closeModal('modal-add-station'); loadStations();
+}
+
+async function deleteStation(id) {
+  if (!confirm('Delete station?')) return;
+  await api(`/api/admin/stations/${id}`,'DELETE');
+  toast('ok','Station deleted'); loadStations();
+}
+
+// ─── Verify Queue ──────────────────────────────────────────────────────────
+async function loadVerifyQueue() {
+  const items = await api('/api/admin/verify-queue');
+  const list  = document.getElementById('verify-list');
+  if (!items.length) { list.innerHTML='<div class="card" style="color:var(--sub);text-align:center;padding:2rem">No pending verifications 🎉</div>'; return; }
+  list.innerHTML = items.map(i => `
+    <div class="card" style="margin-bottom:.75rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">
+        <div>
+          <div style="font-weight:600;margin-bottom:.2rem">${esc(i.title)}</div>
+          <div style="font-size:.78rem;color:var(--sub)">${esc(i.team_name)} · ${fmtTime(i.completed_at)} · <span class="chip chip-pending">${i.type.replace(/_/g,' ')}</span></div>
+        </div>
+      </div>
+      ${i.proof_url ? `<img src="${i.proof_url}" style="max-width:100%;max-height:200px;object-fit:contain;border-radius:8px;margin-bottom:.75rem;background:#000"/>` : ''}
+      ${i.answer_submitted ? `<div style="font-size:.82rem;margin-bottom:.75rem;padding:.5rem .75rem;background:rgba(255,255,255,.04);border-radius:8px">Answer: <b>${esc(i.answer_submitted)}</b></div>` : ''}
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-ok btn-sm" onclick="verifyTask('${i.id}','approve')">✅ Approve</button>
+        <button class="btn btn-danger btn-sm" onclick="verifyTask('${i.id}','reject')">❌ Reject</button>
+      </div>
+    </div>`).join('');
+}
+
+async function verifyTask(id, action) {
+  let note = '';
+  if (action === 'reject') { note = prompt('Rejection reason?') || ''; }
+  await api(`/api/admin/verify/${id}`,'POST',{action,note});
+  toast(action==='approve'?'ok':'warn', action==='approve'?'Task approved!':'Task rejected');
+  loadVerifyQueue();
+}
+
+// ─── Kills ─────────────────────────────────────────────────────────────────
+async function loadKills() {
+  const [pending, all] = await Promise.all([api('/api/admin/kills/pending'), api('/api/admin/kills')]);
+  const pendList = document.getElementById('kills-pending-list');
+  pendList.innerHTML = pending.length ? pending.map(k => `
+    <div class="kill-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem">
+        <div>
+          <span class="chip chip-imp">Imposter: ${esc(k.imposter_name)}</span> →
+          <span class="chip chip-crew">Victim: ${esc(k.victim_name)}</span>
+          <div style="font-size:.75rem;color:var(--sub);margin-top:.3rem">Status: ${k.status}</div>
+        </div>
+        <div style="font-size:.75rem;color:var(--sub)">${fmtTime(k.reported_at)}</div>
+      </div>
+      ${k.evidence_note ? `<div style="font-size:.8rem;color:var(--sub);margin-bottom:.5rem">Evidence: ${esc(k.evidence_note)}</div>` : ''}
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-danger btn-sm" onclick="approveKill('${k.id}')">☠️ Approve Kill</button>
+        <button class="btn btn-ghost btn-sm" onclick="rejectKill('${k.id}')">✖ Reject</button>
+      </div>
+    </div>`).join('') : '<div style="color:var(--sub);font-size:.85rem;padding:.5rem">No pending kills</div>';
+
+  const tbody = document.getElementById('kills-history-body');
+  tbody.innerHTML = all.map(k => `
+    <tr>
+      <td>${esc(k.imposter_name)}</td>
+      <td>${esc(k.victim_name)}</td>
+      <td style="font-size:.75rem">${esc(k.evidence_note||'—')}</td>
+      <td style="font-size:.75rem">${fmtTime(k.reported_at)}</td>
+      <td><span class="chip chip-${k.status==='approved'?'approved':k.status==='rejected'?'rejected':'pending'}">${k.status}</span></td>
+    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--sub)">No kills yet</td></tr>';
+}
+
+async function approveKill(id) {
+  if (!confirm('Approve this kill? The victim team will be eliminated.')) return;
+  await api(`/api/admin/kills/${id}/approve`,'POST',{});
+  toast('error','Kill approved — team eliminated!'); loadKills();
+}
+
+async function rejectKill(id) {
+  const reason = prompt('Rejection reason?') || '';
+  await api(`/api/admin/kills/${id}/reject`,'POST',{reason});
+  toast('ok','Kill rejected'); loadKills();
+}
+
+// ─── Meetings ──────────────────────────────────────────────────────────────
+async function loadMeetingState() {
+  const m    = await api('/api/admin/meetings/active');
+  const hist = await api('/api/admin/meetings');
+  const activebox = document.getElementById('active-meeting-box');
+  const nobox     = document.getElementById('no-meeting-box');
+
+  if (m) {
+    activeMeetingId = m.id;
+    activebox.style.display = 'block';
+    nobox.style.display     = 'none';
+    startMeetingTimer(m);
+    updateVoteTally(m.tally||[]);
+    const chip = document.getElementById('meeting-phase-chip');
+    chip.textContent = m.phase;
+    chip.className   = `chip chip-${m.phase==='voting'?'imp':m.phase==='closed'?'ok':'pending'}`;
+    document.getElementById('meeting-status-txt').textContent =
+      m.phase==='discussion' ? 'Discussion in progress — facilitating debate…' :
+      m.phase==='voting'     ? 'Voting is open! Tallying votes…' : 'Meeting closed';
+  } else {
+    activeMeetingId = null;
+    activebox.style.display = 'none';
+    nobox.style.display     = 'block';
+    if (meetingTimerInterval) { clearInterval(meetingTimerInterval); meetingTimerInterval=null; }
+  }
+
+  const tbody = document.getElementById('meetings-history-body');
+  tbody.innerHTML = hist.map(m => `
+    <tr>
+      <td>${esc(m.called_by_name)}</td>
+      <td style="font-size:.75rem">${fmtTime(m.started_at)}</td>
+      <td><span class="chip chip-${m.phase==='closed'?'approved':'pending'}">${m.phase}</span></td>
+      <td>${m.voted_out_team_id ? esc(m.voted_out_team_id) : '—'}</td>
+      <td>${m.was_imposter===1?'✅ Yes':m.was_imposter===0?'❌ No':'—'}</td>
+    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--sub)">No meetings yet</td></tr>';
+}
+
+function startMeetingTimer(m) {
+  if (meetingTimerInterval) clearInterval(meetingTimerInterval);
+  meetingTimerInterval = setInterval(() => {
+    const now     = Math.floor(Date.now()/1000);
+    const target  = m.phase==='discussion' ? m.discussion_ends_at : m.voting_ends_at;
+    if (!target) { document.getElementById('meeting-timer').textContent = '—'; return; }
+    const rem = Math.max(0, target - now);
+    const mm  = Math.floor(rem/60), ss = rem%60;
+    document.getElementById('meeting-timer').textContent = `${mm}:${ss.toString().padStart(2,'0')}`;
+  }, 1000);
+}
+
+function updateVoteTally(tally) {
+  const el = document.getElementById('vote-tally-display');
+  if (!el) return;
+  if (!tally||!tally.length) { el.innerHTML='<div style="color:var(--sub);font-size:.82rem">No votes yet</div>'; return; }
+  const max = tally[0].count;
+  el.innerHTML = tally.map(v => `
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.4rem">
+      <div style="font-size:.8rem;width:130px;flex-shrink:0">${esc(v.target_name||'Skip')}</div>
+      <div class="progress-wrap" style="flex:1"><div class="progress-bar" style="width:${(v.count/max*100)}%;background:var(--imp)"></div></div>
+      <div style="font-family:'Orbitron',sans-serif;font-size:.85rem;width:2rem;text-align:right">${v.count}</div>
+    </div>`).join('');
+}
+
+async function startMeeting() {
+  const calledBy = v('meeting-team-id');
+  const reason   = v('meeting-reason');
+  await api('/api/admin/meetings/start','POST',{calledByTeamId:calledBy||undefined, reason});
+  toast('warn','🔔 Meeting started!'); loadMeetingState();
+}
+
+async function openVoting() {
+  if (!activeMeetingId) return;
+  await api(`/api/admin/meetings/${activeMeetingId}/open-voting`,'POST',{});
+  toast('info','Voting opened!'); loadMeetingState();
+}
+
+async function revealResult() {
+  if (!activeMeetingId) return;
+  if (!confirm('Reveal the vote result?')) return;
+  const r = await api(`/api/admin/meetings/${activeMeetingId}/reveal`,'POST',{});
+  toast('info', r.ejectedTeamId ? `Ejected: ${r.ejectedName} (${r.wasImposter?'IMPOSTER':'NOT IMPOSTER'})` : 'Tie — no ejection');
+  loadMeetingState();
+}
+
+async function closeMeeting() {
+  if (!activeMeetingId) return;
+  await api(`/api/admin/meetings/${activeMeetingId}/close`,'POST',{});
+  toast('ok','Meeting closed'); loadMeetingState();
+}
+
+// ─── Timeline ──────────────────────────────────────────────────────────────
+async function loadTimeline() {
+  const rows = await api('/api/admin/activity?limit=200');
+  const feed = document.getElementById('timeline-feed');
+  feed.innerHTML = rows.map(r => `
+    <div class="feed-item ${r.type}">
+      <span class="feed-time">${fmtTime(r.timestamp)}</span>
+      <span class="feed-text">${r.description}</span>
+    </div>`).join('') || '<div style="color:var(--sub);font-size:.8rem">No activity yet</div>';
+}
+
+// ─── Analytics ────────────────────────────────────────────────────────────
+async function loadLeaderboard() {
+  const rows = await api('/api/admin/leaderboard');
+  const tbody = document.getElementById('leaderboard-body');
+  tbody.innerHTML = rows.map((r,i) => `
+    <tr>
+      <td style="font-family:'Orbitron',sans-serif">${i+1}</td>
+      <td><b>${esc(r.name)}</b></td>
+      <td><span class="chip chip-${r.role}">${r.role}</span></td>
+      <td><span class="chip chip-${r.status}">${r.status}</span></td>
+      <td>${r.tasksCompleted}/${r.tasksTotal}</td>
+      <td style="font-family:'Orbitron',sans-serif;color:var(--crew)">${r.points}</td>
+      <td style="color:var(--imp)">${r.kills}</td>
+      <td style="font-size:.75rem">${r.achievements.map(a=>a.icon+' '+a.label).join(', ')||'—'}</td>
+    </tr>`).join('');
+}
+
+async function exportCSV() {
+  window.location.href='/api/admin/export';
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────
+async function loadSettings() {
+  const s = await api('/api/admin/settings');
+  document.getElementById('s-crew-task-win').value = s.crew_task_win_pct||'70';
+  document.getElementById('s-imp-ratio').value     = s.imposter_ratio_win||'1';
+  document.getElementById('s-disc-timer').value    = s.discussion_timer_secs||'180';
+  document.getElementById('s-vote-timer').value    = s.voting_timer_secs||'120';
+  document.getElementById('s-kill-ack').value      = s.kill_ack_window_secs||'90';
+  document.getElementById('s-max-meetings').value  = s.max_meetings_per_team||'2';
+  document.getElementById('s-tie-vote').value      = s.tie_vote_action||'skip';
+  document.getElementById('s-imp-count').value     = s.total_imposter_teams||'5';
+  document.getElementById('s-task-min').value      = s.tasks_per_team_min||'8';
+  document.getElementById('s-task-max').value      = s.tasks_per_team_max||'12';
+}
+
+async function saveSettings() {
+  const data = {
+    crew_task_win_pct:     v('s-crew-task-win'),
+    imposter_ratio_win:    v('s-imp-ratio'),
+    discussion_timer_secs: v('s-disc-timer'),
+    voting_timer_secs:     v('s-vote-timer'),
+    kill_ack_window_secs:  v('s-kill-ack'),
+    max_meetings_per_team: v('s-max-meetings'),
+    tie_vote_action:       v('s-tie-vote'),
+    total_imposter_teams:  v('s-imp-count'),
+    tasks_per_team_min:    v('s-task-min'),
+    tasks_per_team_max:    v('s-task-max')
+  };
+  await api('/api/admin/settings','PUT',data);
+  toast('ok','Settings saved!');
+}
+
+// ─── Game controls ────────────────────────────────────────────────────────
+async function startGame() {
+  if (!confirm('Start the game? This will set phase to MISSION.')) return;
+  await api('/api/admin/game/start','POST',{});
+  toast('ok','Game started!');
+}
+async function endGamePrompt() {
+  const winner = confirm('Did CREW win? (Cancel = Imposters win)') ? 'crew' : 'imposters';
+  await api('/api/admin/game/end','POST',{winner});
+  toast('info',`Game ended. ${winner} won!`);
+}
+async function resetGame() {
+  if (!confirm('RESET the entire game? This deletes all tasks, kills, votes, and meetings. Cannot be undone.')) return;
+  await api('/api/admin/game/reset','POST',{});
+  toast('warn','Game reset!'); loadOverview(); loadTeams();
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+async function api(url, method='GET', body=null) {
+  const opts = { method, headers:{'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if (res.status===401||res.status===403) { window.location.href='/login'; return {}; }
+  try { return await res.json(); } catch { return {}; }
+}
+
+function v(id) { return document.getElementById(id)?.value || ''; }
+function esc(s) { return String(s||'').replace(/[<>&"']/g, c=>({
+  '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function fmtTime(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts * 1000);
+  return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function toast(type, msg) {
+  const ct = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  const icons = {ok:'✅',error:'❌',warn:'⚠️',info:'ℹ️'};
+  el.className = `toast ${type==='ok'?'success':type}`;
+  el.innerHTML = `<span>${icons[type]||'•'}</span><span>${msg}</span>`;
+  ct.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function openModal(id)  { document.getElementById(id)?.classList.add('open'); }
+function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
+
+async function logout() {
+  await fetch('/api/auth/logout',{method:'POST'});
+  window.location.href='/login';
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+socket.emit('game:request_state');
+loadOverview();
+loadActivity();
+
+// Auto-refresh overview every 15s
+setInterval(() => {
+  if (document.getElementById('section-overview')?.classList.contains('active')) {
+    loadOverview(); loadActivity();
+  }
+}, 15000);
+</script>
+</body>
+</html>

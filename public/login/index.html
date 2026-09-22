@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Taskforce Traitors — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0A0B14;--card:#12132A;--crew:#00D4FF;--imp:#FF2D55;--meet:#FFB800;
+    --text:#E8EAED;--sub:#8892A4;--border:rgba(255,255,255,.08);
+    --glow-crew:0 0 24px rgba(0,212,255,.35);
+    --glow-imp:0 0 24px rgba(255,45,85,.35);
+  }
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow:hidden}
+
+  /* Stars background */
+  .stars{position:fixed;inset:0;pointer-events:none;z-index:0}
+  .star{position:absolute;border-radius:50%;background:#fff;animation:twinkle var(--d,3s) ease-in-out infinite alternate}
+  @keyframes twinkle{0%{opacity:.1}100%{opacity:var(--o,.8)}}
+
+  /* Main layout */
+  .page{position:relative;z-index:1;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem;gap:2rem}
+
+  /* Logo */
+  .logo{text-align:center}
+  .logo-icon{font-size:4rem;filter:drop-shadow(0 0 20px var(--crew));margin-bottom:.5rem;animation:pulse-icon 2s ease-in-out infinite}
+  @keyframes pulse-icon{0%,100%{filter:drop-shadow(0 0 20px var(--crew))}50%{filter:drop-shadow(0 0 40px var(--crew))}}
+  .logo h1{font-family:'Orbitron',sans-serif;font-size:clamp(1.4rem,5vw,2.4rem);font-weight:900;
+    background:linear-gradient(135deg,var(--crew),#7B6CFF,var(--imp));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:.08em;text-transform:uppercase}
+  .logo p{color:var(--sub);font-size:.85rem;letter-spacing:.15em;text-transform:uppercase;margin-top:.25rem}
+
+  /* Card */
+  .card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:2rem;
+    backdrop-filter:blur(20px);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+
+  /* Tabs */
+  .tabs{display:flex;gap:.5rem;background:rgba(255,255,255,.04);padding:.3rem;border-radius:10px;margin-bottom:1.75rem}
+  .tab-btn{flex:1;padding:.55rem .5rem;border:none;background:transparent;color:var(--sub);font-family:'Inter',sans-serif;
+    font-size:.85rem;font-weight:500;border-radius:7px;cursor:pointer;transition:all .25s;letter-spacing:.03em}
+  .tab-btn.active{background:linear-gradient(135deg,rgba(0,212,255,.2),rgba(123,108,255,.2));color:var(--crew);
+    box-shadow:inset 0 0 0 1px rgba(0,212,255,.3)}
+
+  /* Form */
+  .form-group{margin-bottom:1.25rem}
+  label{display:block;font-size:.75rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--sub);margin-bottom:.5rem}
+  input,select{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;
+    padding:.75rem 1rem;color:var(--text);font-family:'Inter',sans-serif;font-size:.95rem;outline:none;transition:all .25s}
+  input:focus,select:focus{border-color:var(--crew);box-shadow:var(--glow-crew)}
+  select option{background:#1a1b2e;color:var(--text)}
+
+  /* Button */
+  .btn{width:100%;padding:.85rem;border:none;border-radius:12px;font-family:'Orbitron',sans-serif;font-size:.85rem;
+    font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
+  .btn-crew{background:linear-gradient(135deg,#00D4FF,#0099CC);color:#000;box-shadow:var(--glow-crew)}
+  .btn-crew:hover{transform:translateY(-2px);box-shadow:0 0 40px rgba(0,212,255,.5)}
+  .btn-imp{background:linear-gradient(135deg,#FF2D55,#CC0033);color:#fff;box-shadow:var(--glow-imp)}
+  .btn-imp:hover{transform:translateY(-2px);box-shadow:0 0 40px rgba(255,45,85,.5)}
+  .btn:active{transform:translateY(0)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+  /* Alert */
+  .alert{padding:.75rem 1rem;border-radius:10px;font-size:.85rem;margin-bottom:1rem;display:none}
+  .alert-error{background:rgba(255,45,85,.15);border:1px solid rgba(255,45,85,.4);color:#FF6B7A}
+  .alert.show{display:block;animation:fadeIn .3s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+
+  /* Divider */
+  .divider{display:flex;align-items:center;gap:.75rem;margin:1.5rem 0;color:var(--sub);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase}
+  .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+  /* Projector link */
+  .projector-link{color:var(--sub);font-size:.8rem;text-decoration:none;letter-spacing:.05em;transition:color .2s}
+  .projector-link:hover{color:var(--crew)}
+
+  /* Spinner */
+  .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);
+    border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:.5rem}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* Tab panes */
+  .tab-pane{display:none}.tab-pane.active{display:block}
+
+  /* Floating particles */
+  .particles{position:fixed;inset:0;pointer-events:none;z-index:0}
+  .particle{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--crew);
+    animation:float-up var(--dur,8s) ease-in-out infinite;opacity:0}
+  @keyframes float-up{
+    0%{opacity:0;transform:translateY(100vh) scale(0)}
+    20%{opacity:.6}
+    80%{opacity:.6}
+    100%{opacity:0;transform:translateY(-10vh) scale(1.5)}
+  }
+</style>
+</head>
+<body>
+
+<!-- Stars -->
+<div class="stars" id="stars"></div>
+<div class="particles" id="particles"></div>
+
+<div class="page">
+  <div class="logo">
+    <div class="logo-icon">🛸</div>
+    <h1>Taskforce Traitors</h1>
+    <p>Social Deduction · Campus Event</p>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('volunteer')" id="tab-volunteer">👥 Volunteer</button>
+      <button class="tab-btn" onclick="switchTab('admin')" id="tab-admin">🔐 Admin</button>
+    </div>
+
+    <!-- Volunteer Tab -->
+    <div class="tab-pane active" id="pane-volunteer">
+      <div class="alert alert-error" id="vol-error"></div>
+      <div class="form-group">
+        <label>Your Team</label>
+        <select id="vol-team">
+          <option value="">Loading teams…</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Team PIN</label>
+        <input type="password" id="vol-pin" placeholder="6-digit PIN" maxlength="6" inputmode="numeric"/>
+      </div>
+      <button class="btn btn-crew" id="vol-login-btn" onclick="volunteerLogin()">Enter Mission Control</button>
+    </div>
+
+    <!-- Admin Tab -->
+    <div class="tab-pane" id="pane-admin">
+      <div class="alert alert-error" id="admin-error"></div>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="admin-user" value="admin" autocomplete="username"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="admin-pass" placeholder="Admin password" autocomplete="current-password"
+               onkeydown="if(event.key==='Enter') adminLogin()"/>
+      </div>
+      <button class="btn btn-imp" id="admin-login-btn" onclick="adminLogin()">Access Command Center</button>
+    </div>
+
+    <div class="divider">or</div>
+    <a href="/projector" class="projector-link" style="display:block;text-align:center">📺 Open Projector View →</a>
+  </div>
+</div>
+
+<script>
+// ─── Generate stars ───────────────────────────────────────────────────────────
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 120; i++) {
+  const s = document.createElement('div');
+  s.className = 'star';
+  const size = Math.random() * 2.5 + 0.5;
+  s.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*100}%;
+    --d:${(Math.random()*4+2).toFixed(1)}s;--o:${(Math.random()*.7+.1).toFixed(2)};
+    animation-delay:${(Math.random()*4).toFixed(1)}s`;
+  starsEl.appendChild(s);
+}
+
+// Particles
+const partsEl = document.getElementById('particles');
+for (let i = 0; i < 15; i++) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  p.style.cssText = `left:${Math.random()*100}%;--dur:${(Math.random()*10+6).toFixed(1)}s;
+    animation-delay:${(Math.random()*8).toFixed(1)}s;
+    background:${Math.random()>.5?'#00D4FF':'#7B6CFF'}`;
+  partsEl.appendChild(p);
+}
+
+// ─── Tab switch ───────────────────────────────────────────────────────────────
+function switchTab(t) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${t}`).classList.add('active');
+  document.getElementById(`pane-${t}`).classList.add('active');
+}
+
+// ─── Load teams ───────────────────────────────────────────────────────────────
+async function loadTeams() {
+  try {
+    const res  = await fetch('/api/auth/teams');
+    const teams = await res.json();
+    const sel   = document.getElementById('vol-team');
+    sel.innerHTML = '<option value="">— Select your team —</option>' +
+      teams.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  } catch {
+    document.getElementById('vol-team').innerHTML = '<option value="">Could not load teams</option>';
+  }
+}
+loadTeams();
+
+// ─── Volunteer login ──────────────────────────────────────────────────────────
+async function volunteerLogin() {
+  const btn  = document.getElementById('vol-login-btn');
+  const err  = document.getElementById('vol-error');
+  err.classList.remove('show');
+  const teamId = document.getElementById('vol-team').value;
+  const pin    = document.getElementById('vol-pin').value.trim();
+  if (!teamId) { showError(err, 'Please select your team'); return; }
+  if (!pin)    { showError(err, 'Please enter your PIN'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Entering…';
+  try {
+    const res  = await fetch('/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'volunteer', teamId, pin })
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(err, data.error || 'Login failed'); btn.disabled = false; btn.innerHTML = 'Enter Mission Control'; return; }
+    window.location.href = data.redirect || '/volunteer';
+  } catch { showError(err, 'Connection error'); btn.disabled = false; btn.innerHTML = 'Enter Mission Control'; }
+}
+
+// ─── Admin login ──────────────────────────────────────────────────────────────
+async function adminLogin() {
+  const btn  = document.getElementById('admin-login-btn');
+  const err  = document.getElementById('admin-error');
+  err.classList.remove('show');
+  const username = document.getElementById('admin-user').value.trim();
+  const password = document.getElementById('admin-pass').value;
+  if (!password) { showError(err, 'Enter password'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Authenticating…';
+  try {
+    const res  = await fetch('/api/auth/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'admin', username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(err, data.error || 'Login failed'); btn.disabled = false; btn.innerHTML = 'Access Command Center'; return; }
+    window.location.href = data.redirect || '/admin';
+  } catch { showError(err, 'Connection error'); btn.disabled = false; btn.innerHTML = 'Access Command Center'; }
+}
+
+function showError(el, msg) {
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+// PIN keypress enter
+document.getElementById('vol-pin').addEventListener('keydown', e => {
+  if (e.key === 'Enter') volunteerLogin();
+});
+</script>
+</body>
+</html>
